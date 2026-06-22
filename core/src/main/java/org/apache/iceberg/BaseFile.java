@@ -89,6 +89,9 @@ abstract class BaseFile<F> extends SupportsIndexProjection
   // cached schema
   private transient Schema avroSchema = null;
 
+  // cached split offsets list to avoid repeated allocation
+  private transient volatile List<Long> splitOffsetsList = null;
+
   // struct type that corresponds to the positions used for internalGet and internalSet
   private static final Types.StructType BASE_TYPE =
       Types.StructType.of(
@@ -365,6 +368,7 @@ abstract class BaseFile<F> extends SupportsIndexProjection
         return;
       case 14:
         this.splitOffsets = ArrayUtil.toLongArray((List<Long>) value);
+        this.splitOffsetsList = null;
         return;
       case 15:
         this.equalityIds = ArrayUtil.toIntArray((List<Integer>) value);
@@ -536,7 +540,10 @@ abstract class BaseFile<F> extends SupportsIndexProjection
   @Override
   public List<Long> splitOffsets() {
     if (hasWellDefinedOffsets()) {
-      return ArrayUtil.toUnmodifiableLongList(splitOffsets);
+      if (splitOffsetsList == null) {
+        this.splitOffsetsList = ArrayUtil.toUnmodifiableLongList(splitOffsets);
+      }
+      return splitOffsetsList;
     }
 
     return null;
