@@ -672,6 +672,7 @@ public class RewriteTablePathUtil {
    * @param sourcePrefix source prefix that will be replaced
    * @param targetPrefix target prefix to replace it
    * @param posDeleteReaderWriter class to read and write position delete files
+   * @throws IllegalArgumentException if the source and output locations are the same
    * @deprecated since 1.12.0, will be removed in 1.13.0; use {@link #rewritePositionDelete} which
    *     returns the size of the rewritten file so callers can record an accurate {@code
    *     file_size_in_bytes}.
@@ -707,6 +708,7 @@ public class RewriteTablePathUtil {
    * @param targetPrefix target prefix to replace it
    * @param posDeleteReaderWriter class to read and write position delete files
    * @return the size in bytes of the rewritten file
+   * @throws IllegalArgumentException if the source and output locations are the same
    */
   public static long rewritePositionDelete(
       DeleteFile deleteFile,
@@ -718,6 +720,10 @@ public class RewriteTablePathUtil {
       PositionDeleteReaderWriter posDeleteReaderWriter)
       throws IOException {
     String path = deleteFile.location();
+    Preconditions.checkArgument(
+        !path.equals(outputFile.location()),
+        "Cannot rewrite position delete file to source location: %s",
+        path);
     if (!path.startsWith(sourcePrefix)) {
       throw new UnsupportedOperationException(
           String.format("Expected delete file %s to start with prefix: %s", path, sourcePrefix));
@@ -783,10 +789,7 @@ public class RewriteTablePathUtil {
       throws IOException {
     try (PuffinReader reader = Puffin.read(io.newInputFile(deleteFile.location())).build();
         PuffinWriter writer =
-            Puffin.write(outputFile)
-                .createdBy(IcebergBuild.fullVersion())
-                .overwrite()
-                .build()) {
+            Puffin.write(outputFile).createdBy(IcebergBuild.fullVersion()).overwrite().build()) {
       for (Pair<BlobMetadata, ByteBuffer> blobPair :
           reader.readAll(reader.fileMetadata().blobs())) {
         BlobMetadata blobMetadata = blobPair.first();
